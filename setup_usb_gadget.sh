@@ -219,7 +219,7 @@ sleep 1
 
 # 10. Start audio forwarding
 echo "Starting audio forwarding..."
-sudo -u gilbertomartinez alsaloop -C multicapture -P plughw:"$PI_AUDIO_CARD",0 -f S32_LE -r 48000 -c 2 --daemon
+sudo -u gilbertomartinez alsaloop -C multicapture -P plughw:"$PI_AUDIO_CARD",0 -f S32_LE -r 48000 -c 2 -t 400000 --daemon
 
 if [ "$ENABLE_AUTO_RECORDING" = true ]; then
     # 11. Start recording in 1-minute segments

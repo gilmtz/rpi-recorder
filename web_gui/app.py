@@ -3,6 +3,7 @@
 import os
 import signal
 import subprocess
+from datetime import datetime
 from flask import Flask, render_template, jsonify, request, send_from_directory
 
 app = Flask(__name__)
@@ -34,7 +35,10 @@ def start_recording():
     if not os.path.exists(RECORDING_DIR):
         os.makedirs(RECORDING_DIR)
 
-    filename = os.path.join(RECORDING_DIR, "manual_recording.wav")
+    # Generate a unique filename with a timestamp
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    filename = os.path.join(RECORDING_DIR, f"manual_recording_{timestamp}.wav")
+    
     command = [
         "arecord",
         "-D", "multicapture",
