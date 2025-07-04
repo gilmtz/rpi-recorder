@@ -17,7 +17,7 @@ set -e
 set -x
 
 # --- Configuration ---
-PI_AUDIO_DEVICE_IDENTIFIER="USB Audio"
+PI_AUDIO_DEVICE_IDENTIFIER="USB Audio Device"
 GADGET_NAME="g1"
 GADGET_DIR="/sys/kernel/config/usb_gadget/${GADGET_NAME}"
 GADGET_AUDIO_DEVICE_NAME="UAC2"
@@ -28,20 +28,20 @@ HOST_IP="10.0.0.2"
 RECORDING_DIR="/home/gilbertomartinez/recordings"
 
 # --- Argument Parsing ---
-ENABLE_ETHERNET=true
-ENABLE_RECORDING=true
+ENABLE_ETHERNET=false
+ENABLE_AUTO_RECORDING=false
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --no-ethernet)
-      ENABLE_ETHERNET=false
+    --with-ethernet)
+      ENABLE_ETHERNET=true
       ;;
-    --no-recording)
-      ENABLE_RECORDING=false
+    --auto-record)
+      ENABLE_AUTO_RECORDING=true
       ;;
     -h|--help)
-      echo "Usage: sudo $0 [--no-ethernet] [--no-recording]"
-      echo "  --no-ethernet   Disable the USB Ethernet (ECM) gadget function."
-      echo "  --no-recording  Disable audio recording."
+      echo "Usage: sudo $0 [--with-ethernet] [--auto-record]"
+      echo "  --with-ethernet   Enable the USB Ethernet (ECM) gadget function."
+      echo "  --auto-record   Enable continuous audio recording in 1-minute segments."
       exit 0
       ;;
     *)
@@ -219,9 +219,9 @@ sleep 1
 
 # 10. Start audio forwarding
 echo "Starting audio forwarding..."
-alsaloop -C plughw:"$USB_AUDIO_CARD",0 -P plughw:"$PI_AUDIO_CARD",0 -f S32_LE -r 48000 -c 2 --daemon
+sudo -u gilbertomartinez alsaloop -C multicapture -P plughw:"$PI_AUDIO_CARD",0 -f S32_LE -r 48000 -c 2 --daemon
 
-if [ "$ENABLE_RECORDING" = true ]; then
+if [ "$ENABLE_AUTO_RECORDING" = true ]; then
     # 11. Start recording in 1-minute segments
     echo "Starting audio recording in 1-minute segments..."
     mkdir -p "${RECORDING_DIR}"

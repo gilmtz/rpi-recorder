@@ -1,0 +1,176 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RPi Recorder</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #121212;
+            color: #e0e0e0;
+            margin: 0;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .container {
+            width: 100%;
+            max-width: 800px;
+        }
+        h1 {
+            color: #ffffff;
+            text-align: center;
+        }
+        .controls {
+            background-color: #1e1e1e;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 1rem;
+        }
+        .button {
+            padding: 0.8rem 1.5rem;
+            border: none;
+            border-radius: 5px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        #startButton {
+            background-color: #4CAF50;
+            color: white;
+        }
+        #startButton:disabled {
+            background-color: #3e8e41;
+            cursor: not-allowed;
+        }
+        #stopButton {
+            background-color: #f44336;
+            color: white;
+        }
+        #stopButton:disabled {
+            background-color: #da190b;
+            cursor: not-allowed;
+        }
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .status-light {
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background-color: #6c757d; /* Grey for off */
+        }
+        .status-light.recording {
+            background-color: #f44336; /* Red for recording */
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(244, 67, 54, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(244, 67, 54, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(244, 67, 54, 0); }
+        }
+        .recordings-list {
+            background-color: #1e1e1e;
+            padding: 1.5rem;
+            border-radius: 8px;
+        }
+        h2 {
+            margin-top: 0;
+            color: #ffffff;
+        }
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+        li {
+            padding: 1rem;
+            border-bottom: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        li:last-child {
+            border-bottom: none;
+        }
+        audio {
+            width: 100%;
+            max-width: 400px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>RPi Audio Recorder</h1>
+
+        <div class="controls">
+            <button id="startButton" class="button">Start Recording</button>
+            <button id="stopButton" class="button">Stop Recording</button>
+            <div class="status">
+                <div id="statusLight" class="status-light"></div>
+                <span id="statusText">Not Recording</span>
+            </div>
+        </div>
+
+        <div class="recordings-list">
+            <h2>Recordings</h2>
+            <ul id="recordings">
+                {% for recording in recordings %}
+                <li>
+                    <span>{{ recording }}</span>
+                    <audio controls src="/recordings/{{ recording }}"></audio>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        const startButton = document.getElementById('startButton');
+        const stopButton = document.getElementById('stopButton');
+        const statusLight = document.getElementById('statusLight');
+        const statusText = document.getElementById('statusText');
+
+        async function updateStatus() {
+            const response = await fetch('/status');
+            const data = await response.json();
+            if (data.is_recording) {
+                statusLight.classList.add('recording');
+                statusText.textContent = 'Recording';
+                startButton.disabled = true;
+                stopButton.disabled = false;
+            } else {
+                statusLight.classList.remove('recording');
+                statusText.textContent = 'Not Recording';
+                startButton.disabled = false;
+                stopButton.disabled = true;
+            }
+        }
+
+        startButton.addEventListener('click', async () => {
+            await fetch('/start_recording', { method: 'POST' });
+            updateStatus();
+        });
+
+        stopButton.addEventListener('click', async () => {
+            await fetch('/stop_recording', { method: 'POST' });
+            updateStatus();
+            // Refresh the page to show the new recording
+            setTimeout(() => location.reload(), 500);
+        });
+
+        // Initial status update
+        updateStatus();
+        // Periodically update status
+        setInterval(updateStatus, 3000);
+    </script>
+</body>
+</html>
