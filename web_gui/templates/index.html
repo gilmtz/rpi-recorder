@@ -1,176 +1,232 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RPi Recorder</title>
+    <title>RPi Audio Recorder</title>
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: #121212;
-            color: #e0e0e0;
-            margin: 0;
-            padding: 2rem;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-        .container {
-            width: 100%;
-            max-width: 800px;
-        }
-        h1 {
-            color: #ffffff;
-            text-align: center;
-        }
-        .controls {
-            background-color: #1e1e1e;
-            padding: 1.5rem;
-            border-radius: 8px;
-            margin-bottom: 2rem;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 1rem;
-        }
-        .button {
-            padding: 0.8rem 1.5rem;
+        body { font-family: sans-serif; background-color: #f0f0f0; color: #333; }
+        .container { max-width: 800px; margin: 20px auto; padding: 20px; background-color: #fff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        h1, h2 { color: #0056b3; }
+        .controls button {
+            padding: 10px 20px;
+            font-size: 16px;
             border: none;
             border-radius: 5px;
-            font-size: 1rem;
             cursor: pointer;
-            transition: background-color 0.3s;
-        }
-        #startButton {
-            background-color: #4CAF50;
             color: white;
+            margin-right: 10px;
         }
-        #startButton:disabled {
-            background-color: #3e8e41;
-            cursor: not-allowed;
+        #startBtn { background-color: #28a745; }
+        #stopBtn { background-color: #dc3545; }
+        #status { margin-top: 15px; font-weight: bold; }
+        .recording-list { list-style-type: none; padding: 0; }
+        .recording-list li {
+            padding: 15px;
+            border-bottom: 1px solid #ddd;
         }
-        #stopButton {
-            background-color: #f44336;
-            color: white;
+        .recording-list li:last-child { border-bottom: none; }
+        audio { width: 100%; max-width: 500px; margin-top: 10px; }
+        .transcription-controls { margin-top: 10px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .transcription-controls select, .transcription-controls button {
+            padding: 5px 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background-color: #f8f9fa;
         }
-        #stopButton:disabled {
-            background-color: #da190b;
-            cursor: not-allowed;
+        .transcribe-btn { background-color: #007bff; color: white; border-color: #007bff; }
+        .transcribe-btn:disabled { background-color: #cccccc; cursor: not-allowed; }
+        .view-transcription-btn { background-color: #6c757d; color: white; }
+        .transcription-box {
+            background-color: #e9ecef;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 10px;
+            white-space: pre-wrap;
+            font-family: monospace;
         }
-        .status {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        .status-light {
-            width: 15px;
-            height: 15px;
-            border-radius: 50%;
-            background-color: #6c757d; /* Grey for off */
-        }
-        .status-light.recording {
-            background-color: #f44336; /* Red for recording */
-            animation: pulse 1.5s infinite;
-        }
-        @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(244, 67, 54, 0.7); }
-            70% { box-shadow: 0 0 0 10px rgba(244, 67, 54, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(244, 67, 54, 0); }
-        }
-        .recordings-list {
-            background-color: #1e1e1e;
-            padding: 1.5rem;
-            border-radius: 8px;
-        }
-        h2 {
-            margin-top: 0;
-            color: #ffffff;
-        }
-        ul {
-            list-style: none;
-            padding: 0;
-        }
-        li {
-            padding: 1rem;
-            border-bottom: 1px solid #333;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        li:last-child {
-            border-bottom: none;
-        }
-        audio {
-            width: 100%;
-            max-width: 400px;
-        }
+        .transcription-header { font-weight: bold; margin-bottom: 5px; }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>RPi Audio Recorder</h1>
-
+        
         <div class="controls">
-            <button id="startButton" class="button">Start Recording</button>
-            <button id="stopButton" class="button">Stop Recording</button>
-            <div class="status">
-                <div id="statusLight" class="status-light"></div>
-                <span id="statusText">Not Recording</span>
-            </div>
+            <button id="startBtn">Start Recording</button>
+            <button id="stopBtn" disabled>Stop Recording</button>
         </div>
+        <div id="status">Status: Idle</div>
 
-        <div class="recordings-list">
-            <h2>Recordings</h2>
-            <ul id="recordings">
-                {% for recording in recordings %}
-                <li>
-                    <span>{{ recording }}</span>
-                    <audio controls src="/recordings/{{ recording }}"></audio>
-                </li>
-                {% endfor %}
-            </ul>
-        </div>
+        <h2>Recordings</h2>
+        <ul id="recordingList" class="recording-list">
+            {% for rec in recordings %}
+            <li id="recording-{{ loop.index }}">
+                <span>{{ rec.filename }}</span>
+                <audio controls src="/recordings/{{ rec.filename }}"></audio>
+                
+                <div class="transcription-controls">
+                    <select id="model-select-{{ loop.index }}">
+                        {% for model in available_models %}
+                            {% if model not in rec.transcriptions %}
+                                <option value="{{ model }}">{{ model }}</option>
+                            {% endif %}
+                        {% endfor %}
+                    </select>
+                    <button class="transcribe-btn" onclick="transcribe('{{ rec.filename }}', {{ loop.index }})">Transcribe</button>
+                </div>
+
+                <div class="existing-transcriptions" id="existing-transcriptions-{{ loop.index }}">
+                    {% for model_name in rec.transcriptions %}
+                        <button class="view-transcription-btn" onclick="toggleTranscription('{{ rec.filename }}', '{{ model_name }}', {{ loop.index }})">
+                            Show '{{ model_name }}' Transcription
+                        </button>
+                    {% endfor %}
+                </div>
+                <div class="transcription-display" id="transcription-display-{{ loop.index }}"></div>
+            </li>
+            {% endfor %}
+        </ul>
     </div>
 
     <script>
-        const startButton = document.getElementById('startButton');
-        const stopButton = document.getElementById('stopButton');
-        const statusLight = document.getElementById('statusLight');
-        const statusText = document.getElementById('statusText');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const statusDiv = document.getElementById('status');
 
         async function updateStatus() {
             const response = await fetch('/status');
             const data = await response.json();
-            if (data.is_recording) {
-                statusLight.classList.add('recording');
-                statusText.textContent = 'Recording';
-                startButton.disabled = true;
-                stopButton.disabled = false;
+            startBtn.disabled = data.is_recording;
+            stopBtn.disabled = !data.is_recording;
+            statusDiv.textContent = data.is_recording ? 'Status: Recording...' : 'Status: Idle';
+        }
+
+        startBtn.addEventListener('click', async () => {
+            const response = await fetch('/start_recording', { method: 'POST' });
+            if (response.ok) updateStatus();
+            else alert('Failed to start recording.');
+        });
+
+        stopBtn.addEventListener('click', async () => {
+            const response = await fetch('/stop_recording', { method: 'POST' });
+            if (response.ok) {
+                updateStatus();
+                setTimeout(() => window.location.reload(), 500);
             } else {
-                statusLight.classList.remove('recording');
-                statusText.textContent = 'Not Recording';
-                startButton.disabled = false;
-                stopButton.disabled = true;
+                alert('Failed to stop recording.');
+            }
+        });
+
+        async function transcribe(filename, index) {
+            const select = document.getElementById(`model-select-${index}`);
+            const modelName = select.value;
+            if (!modelName) {
+                alert("No model selected or all models have been transcribed.");
+                return;
+            }
+
+            const btn = document.querySelector(`#recording-${index} .transcribe-btn`);
+            btn.textContent = `Transcribing with '${modelName}'...`;
+            btn.disabled = true;
+            select.disabled = true;
+
+            try {
+                const response = await fetch('/transcribe', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ filename, model_name: modelName })
+                });
+                const result = await response.json();
+
+                if (response.ok) {
+                    // Add a new button to view the transcription
+                    const container = document.getElementById(`existing-transcriptions-${index}`);
+                    const newBtn = document.createElement('button');
+                    newBtn.className = 'view-transcription-btn';
+                    newBtn.textContent = `Show '${modelName}' Transcription`;
+                    newBtn.onclick = () => toggleTranscription(filename, modelName, index);
+                    container.appendChild(newBtn);
+
+                    // Remove the transcribed model from the dropdown
+                    select.querySelector(`option[value="${modelName}"]`).remove();
+                    
+                    // Show the new transcription immediately
+                    toggleTranscription(filename, modelName, index, result.transcription);
+
+                } else {
+                    alert(`Transcription failed: ${result.message}`);
+                }
+            } catch (error) {
+                console.error('Error during transcription:', error);
+                alert('An error occurred during transcription.');
+            } finally {
+                btn.textContent = 'Transcribe';
+                btn.disabled = false;
+                select.disabled = false;
             }
         }
 
-        startButton.addEventListener('click', async () => {
-            await fetch('/start_recording', { method: 'POST' });
-            updateStatus();
-        });
+        async function toggleTranscription(filename, modelName, index, initialText) {
+            const displayDiv = document.getElementById(`transcription-display-${index}`);
+            const transcriptionId = `transcription-${index}-${modelName.replace('.', '-')}`;
+            const existingBox = document.getElementById(transcriptionId);
+            
+            const allButtons = document.querySelectorAll(`#existing-transcriptions-${index} .view-transcription-btn`);
+            const currentButton = Array.from(allButtons).find(b => b.textContent.includes(`'${modelName}'`));
 
-        stopButton.addEventListener('click', async () => {
-            await fetch('/stop_recording', { method: 'POST' });
-            updateStatus();
-            // Refresh the page to show the new recording
-            setTimeout(() => location.reload(), 500);
-        });
+            if (existingBox) {
+                // Hide the currently shown transcription
+                existingBox.remove();
+                currentButton.textContent = `Show '${modelName}' Transcription`;
+            } else {
+                // Hide any other visible transcriptions for this recording
+                displayDiv.innerHTML = '';
+                allButtons.forEach(b => {
+                    if(b.textContent.startsWith('Hide')) {
+                       const otherModel = b.textContent.match(/'(.*?)'/)[1];
+                       b.textContent = `Show '${otherModel}' Transcription`;
+                    }
+                });
 
-        // Initial status update
+                // Show the selected transcription
+                currentButton.textContent = `Hide '${modelName}' Transcription`;
+                const transcriptionBox = document.createElement('div');
+                transcriptionBox.id = transcriptionId;
+                transcriptionBox.className = 'transcription-box';
+                
+                const header = document.createElement('div');
+                header.className = 'transcription-header';
+                header.textContent = `Model: ${modelName}`;
+                transcriptionBox.appendChild(header);
+
+                const content = document.createElement('div');
+                transcriptionBox.appendChild(content);
+                
+                displayDiv.appendChild(transcriptionBox);
+
+                if (initialText) {
+                    content.textContent = initialText;
+                } else {
+                    content.textContent = 'Loading...';
+                    try {
+                        const response = await fetch(`/get_transcription/${filename}.${model_name}.txt`);
+                        if (response.ok) {
+                            content.textContent = await response.text();
+                        } else {
+                            content.textContent = 'Could not load transcription.';
+                        }
+                    } catch (error) {
+                        console.error('Error fetching transcription:', error);
+                        content.textContent = 'An error occurred while fetching the transcription.';
+                    }
+                }
+            }
+        }
+
+        // Initial status check when the page loads
         updateStatus();
-        // Periodically update status
-        setInterval(updateStatus, 3000);
     </script>
 </body>
 </html>
